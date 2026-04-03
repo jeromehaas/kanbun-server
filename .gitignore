@@ -1,0 +1,60 @@
+# PYTHON CACHE
+__pycache__/
+*.py[cod]
+*$py.class
+
+# VIRTUAL ENVIRONMENTS
+.venv/
+venv/
+env/
+ENV/
+
+# BUILD AND PACKAGING
+build/
+dist/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+
+# TEST AND COVERAGE
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# TYPE CHECKING AND LINTING
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.dmypy.json
+
+# TASK RUNNERS AND AUTOMATION
+.tox/
+.nox/
+
+# ENVIRONMENT AND LOCAL CONFIG
+.env
+.env.*
+.flaskenv
+
+# DATABASES AND INSTANCE DATA
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# RUNTIME FILES
+*.log
+logs/
+uploads/
+tmp/
+temp/
+.cache/
+
+# EDITOR AND IDE FILES
+.idea/
+.vscode/
+
+# OPERATING SYSTEM FILES
+.DS_Store
+Thumbs.db
