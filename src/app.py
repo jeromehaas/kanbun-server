@@ -1,10 +1,14 @@
 # IMPORTS
 from flask import Flask
+from src.database import init_database, ensure_tables, register_db_hooks
+from src.routes import register_routes
 
 # SETUP APP
 app = Flask(__name__)
 
-# ROUTE HELLO-WORLD
-@app.route('/')
-def hello_world():
-    return "<p>Hello, World!</p>"
+# SETUP DB
+init_database()
+ensure_tables()
+register_db_hooks(app)
+register_routes(app)
+
