@@ -2,7 +2,6 @@
 from flask import jsonify, request
 from src.models import Board, Task, Lane
 
-
 # FUNCTION: GET ALL
 def get_all():
 
@@ -32,14 +31,17 @@ def get_by_id(task_id):
     task = Task.get_or_none(Task.id == task_id)
 
    # CHECK FOR TASK
-    if task in None:
+    if task is None:
         return jsonify(
             {"💥ERROR": "TASK NOT FOUND"}
         ), 404
 
     # SEND RESPONSE
-    return jsonify(
-        task,
+    return jsonify({
+        "id": task.id,
+        "title": task.title,
+        "description": task.description,
+    },
     ), 200
 
 # FUNCTION:
@@ -63,18 +65,18 @@ def create():
 
     # CHECK FOR BOARD
     if board is None:
-        return jsonify(
-            {"💥ERROR": "BOARD NOT FOUND"}
-        ), 404
+        return jsonify({
+            "💥ERROR": "BOARD NOT FOUND"
+        }), 404
 
     # GET LANE AND MAKE SURE IT BELONGS TO BOARD
     lane = Lane.get_or_none((Lane.id == lane_id) & (Lane.board == board))
 
     # CHECK FOR LANE
     if lane is None:
-        return jsonify(
-            {"💥ERROR": "LANE NOT FOUND FOR THIS BOARD"}
-        ), 404
+        return jsonify({
+            "💥ERROR": "LANE NOT FOUND FOR THIS BOARD"
+        }), 404
 
 
     # CREATE TASK
@@ -142,9 +144,6 @@ def update(task_id):
     if "description" in data:
         task.description = data["description"]
 
-    if "done" in data:
-        task.done = data["done"]
-
     # UPDATE RELATIONS
     task.board = board
     task.lane = lane
@@ -179,7 +178,6 @@ def delete(task_id):
         "id": task.id,
         "title": task.title,
         "description": task.description,
-        "done": task.done,
         "board_id": task.board.id,
         "lane_id": task.lane.id,
     }

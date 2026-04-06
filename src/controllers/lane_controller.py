@@ -31,14 +31,35 @@ def get_all(board_id):
         lane_list,
     ), 200
 
-
 # FUNCTION: GET BY ID
 def get_by_id(board_id, lane_id):
 
+    # GET LANE
+    lane = Lane.get_or_none(Lane.id == lane_id)
+
+    # CHECK FOR LANE
+    if lane is None:
+        return jsonify({
+            "💥ERROR": "BOARD NOT FOUND"
+        })
+
+    # DEFINE TASKS LIST
+    task_list = []
+
+    for task in lane.tasks:
+        task_list.append({
+            "id": task.id,
+            "board_id": task.board.id,
+            "title": task.title,
+            "description": task.description,
+        })
+
     # SEND RESPONSE
-    return jsonify(
-        "GET_BY_ID"
-    ), 200
+    return jsonify({
+        "id": lane.id,
+        "name": lane.name,
+        "tasks": task_list
+    }), 200
 
 
 # FUNCTION: CREATE
@@ -128,7 +149,7 @@ def delete(board_id, lane_id):
     # CHECK FOR BOARD
     if board is None:
         return jsonify({
-            "ERROR": "BOARD WAS NOT FOUND"
+            "💥ERROR": "BOARD WAS NOT FOUND"
         }), 404
 
     # GET LANE

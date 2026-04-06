@@ -66,26 +66,42 @@ def get_by_id(board_id):
 
     # CHECK IF BOARD EXI
     if board is None:
-        return jsonify(
-            {"💥ERROR": "BOARD NOT FOUND"}
-        ), 404
+        return jsonify({
+            "💥ERROR": "BOARD NOT FOUND"
+        }), 404
 
-    # SETUP TASK LIST
-    task_list = []
+    # DEFINE LANE LIST
+    lane_list = []
 
-    # ADD TASK TO TASKS LIST
-    for task in board.tasks:
-        task_list.append({
-            "id": task.id,
-            "title": task.title,
-            "description": task.description,
+    # LOOP OVER LANE LIST
+    for lane in board.lanes:
+
+        # SETUP TASK LIST
+        task_list = []
+
+        # LOOP OVER TASKS
+        for task in lane.tasks:
+
+            # ADD TASKS TO TASK LIST
+            task_list.append({
+                "id": task.id,
+                "title": task.title,
+                "description": task.description,
+            })
+
+        # ADD LANES TO LANE LIST
+        lane_list.append({
+            "id": lane.id,
+            "name": lane.name,
+            "position": lane.position,
+            "tasks": task_list,
         })
 
     # SEND RESPONSE
     return jsonify({
         "id": board.id,
         "name": board.name,
-        "tasks": task_list,
+        "lanes": lane_list,
     }), 200
 
 
@@ -98,16 +114,16 @@ def create():
 
     # CHECK FOR NAME ATTRIBUTE
     if not name:
-        return jsonify(
-            {"💥ERROR": "BOARD NAME IS REQUIRED"}
-        ), 400
+        return jsonify({
+            "💥ERROR": "BOARD NAME IS REQUIRED"
+        }), 400
 
     # CHECK FOR EXISTING BOARD
     existing_board = Board.get_or_none(Board.name == name)
     if existing_board is not None:
-        return jsonify(
-            {"💥ERROR": "BOARD WITH THIS NAME ALREADY EXISTS"}
-        ), 400
+        return jsonify({
+            "💥ERROR": "BOARD WITH THIS NAME ALREADY EXISTS"
+        }), 400
 
     # CREATE NEW BOARD
     board = Board.create(name=name)
@@ -127,9 +143,9 @@ def update(board_id):
 
     # CHECK IF BOARD EXISTS
     if board is None:
-        return jsonify(
-            {"💥ERROR": "BOARD NOT FOUND"}
-        ), 404
+        return jsonify({
+            "💥ERROR": "BOARD NOT FOUND"
+        }), 404
 
     # GET DATA FROM BODY
     data = request.get_json() or {}
@@ -153,9 +169,9 @@ def update(board_id):
 
     # SAFETY CHECK
     if updated_board is None:
-        return jsonify(
-            {"💥ERROR": "BOARD NOT FOUND"}
-        ), 404
+        return jsonify({
+            "💥ERROR": "BOARD NOT FOUND"
+        }), 404
 
     # SETUP LANE LIST
     lane_list = []

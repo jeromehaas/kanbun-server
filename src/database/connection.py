@@ -18,7 +18,7 @@ def init_database():
 
     # CHECK ALL CREDENTIALS
     if not all([database_name, database_user, database_password, database_host, database_port]):
-        raise RuntimeError("Database environment variables are missing or invalid.")
+        raise RuntimeError("DATABASE ENVIRONMENT VARIABLES ARE MISSING OR INVALID.")
 
     # INIT DB
     db.init(
