@@ -1,17 +1,17 @@
 # IMPORTS
 from flask import jsonify, request
-from src.models import Board, Task, Lane, lane
+from src.models import Board, Task, Lane
 
 # FUNCTION: GET ALL
 def get_all(board_id):
 
     # GET BOARD
-    board = Board.get_or_none(board_id == board_id)
+    board = Board.get_or_none(Board.id == board_id)
 
     # CHECK FOR BOARD
     if board is None:
         return jsonify({
-            "💥ERROR": "NO BOARD WAS FOUND"
+            "ERROR": "NO BOARD WAS FOUND"
         }), 404
 
     # DEFINE LANE LIST
@@ -21,7 +21,6 @@ def get_all(board_id):
     for lane in board.lanes.order_by(Lane.position):
         lane_list.append({
             "id": lane.id,
-            "board_id": lane.board.id,
             "name": lane.name,
             "position": lane.position,
         })
@@ -31,15 +30,33 @@ def get_all(board_id):
         lane_list,
     ), 200
 
-
 # FUNCTION: GET BY ID
 def get_by_id(board_id, lane_id):
 
-    # SEND RESPONSE
-    return jsonify(
-        "GET_BY_ID"
-    ), 200
+    # GET BOARD
+    board = Board.get_or_none(Board.id == board_id);
 
+    # CHECK FOR BOARD
+    if board is None:
+        return jsonify({
+            "ERROR": "NO BOARD WAS FOUND"
+        }), 404
+
+    # GET LANE
+    lane = Lane.get_or_none((Lane.id == lane_id) & (Lane.board == board))
+
+    # CHECK FOR LANE
+    if lane is None:
+        return jsonify({
+            "ERROR": "NO LANE WAS FOUND"
+        }), 404
+
+    # SEND RESPONSE
+    return jsonify({
+        "id": lane.id,
+        "name": lane.name,
+        "position": lane.position,
+    }), 200
 
 # FUNCTION: CREATE
 def create(board_id):
@@ -50,7 +67,7 @@ def create(board_id):
     # CHECK FOR BOARD
     if board is None:
         return jsonify({
-            "💥ERROR": "NO BOARD WAS FOUND"
+            "ERROR": "NO BOARD WAS FOUND"
         }), 404
 
     # GET DATA FROM BODY
@@ -72,7 +89,6 @@ def create(board_id):
         "position": lane.position,
     }), 201
 
-
 # FUNCTION: UPDATE
 def update(board_id, lane_id):
 
@@ -82,7 +98,7 @@ def update(board_id, lane_id):
     # CHECK FOR BOARD
     if board is None:
         return jsonify({
-            "💥ERROR": "NO BOARD WAS FOUND"
+            "ERROR": "NO BOARD WAS FOUND"
         }), 404
 
     # GET LANE
@@ -94,19 +110,21 @@ def update(board_id, lane_id):
     # CHECK FOR LANE
     if lane is None:
         return jsonify({
-            "💥ERROR": "NO LANE WAS FOUND"
+            "ERROR": "NO LANE WAS FOUND"
         }), 404
 
     # GET DATA FROM BODY
     data = request.get_json() or {}
+    name = data.get("name")
+    position = data.get("position")
 
     # UPDATE NAME IF PROVIDED
     if "name" in data:
-        lane.name = data["name"]
+        lane.name = name
 
     # UPDATE POSITION IF PROVIDED
     if "position" in data:
-        lane.position = data["position"]
+        lane.position = position
 
     # SAVE CHANGES
     lane.save()
@@ -115,7 +133,6 @@ def update(board_id, lane_id):
     return jsonify({
         "id": lane.id,
         "name": lane.name,
-        "board_id": lane.board.id,
         "position": lane.position
     }), 200
 
@@ -140,7 +157,7 @@ def delete(board_id, lane_id):
     # CHECK FOR LANE
     if lane is None:
         return jsonify({
-            "💥ERROR": "LANE WAS NOT FOUND"
+            "ERROR": "LANE WAS NOT FOUND"
         }), 404
 
     # SAVE DELETED LANE

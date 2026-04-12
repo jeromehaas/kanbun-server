@@ -1,6 +1,6 @@
 # IMPORTS
 from flask import Blueprint
-import src.controllers.board_controller as boards
+import src.controllers.boards as boards
 
 # CREATE BLUEPRINT
 boards_bp = Blueprint("boards", __name__)

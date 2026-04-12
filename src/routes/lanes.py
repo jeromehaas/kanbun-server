@@ -1,6 +1,6 @@
 # IMPORTS
 from flask import Blueprint
-import src.controllers.lane_controller as lanes
+import src.controllers.lanes as lanes
 
 # CREATE BLUEPRINT
 lanes_bp = Blueprint("lanes", __name__)

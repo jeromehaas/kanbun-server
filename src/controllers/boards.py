@@ -6,11 +6,11 @@ from src.models import Board, Task, Lane
 # FUNCTION: GET ALL
 def get_all():
 
-    # PREFETCH ALL BOARDS
+    # PREFETCH ALL BOARDS WITH LANES AND TASKS
     boards = prefetch(
         Board.select().order_by(Board.id),
-        Lane.select().order_by(Lane.id),
-        Task.select()
+        Lane.select().order_by(Lane.position),
+        Task.select().order_by(Task.id)
     )
 
     # SETUP BOARD LIST
@@ -25,20 +25,18 @@ def get_all():
         # LOOP OVER LANES
         for lane in board.lanes:
 
-            # DEFINE TASK LIST
+            # SETUP TASK LIST
             task_list = []
 
             # LOOP OVER TASKS
             for task in lane.tasks:
-
-                # ADD TASKS TO TASK LIST
                 task_list.append({
                     "id": task.id,
                     "title": task.title,
                     "description": task.description,
                 })
 
-            # ADD LANES TO LANE LIST
+            # ADD LANE TO LANE LIST
             lane_list.append({
                 "id": lane.id,
                 "name": lane.name,
@@ -46,7 +44,7 @@ def get_all():
                 "tasks": task_list,
             })
 
-        # ADD BOARDS TO BOARD LIST
+        # ADD BOARD TO BOARD LIST
         board_list.append({
             "id": board.id,
             "name": board.name,
@@ -54,70 +52,94 @@ def get_all():
         })
 
     # SEND RESPONSE
-    return jsonify(
-        board_list
-    ), 200
+    return jsonify(board_list), 200
+
 
 # FUNCTION: GET BY ID
 def get_by_id(board_id):
 
-    # GET BOARD
-    board = Board.get_or_none(Board.id == board_id)
+    # PREFETCH BOARD WITH LANES AND TASKS
+    boards = prefetch(
+        Board.select().where(Board.id == board_id),
+        Lane.select().order_by(Lane.position),
+        Task.select().order_by(Task.id)
+    )
 
-    # CHECK IF BOARD EXI
+    # EXTRACT SINGLE BOARD
+    board = next(iter(boards), None)
+
+    # CHECK FOR BOARD
     if board is None:
-        return jsonify(
-            {"💥ERROR": "BOARD NOT FOUND"}
-        ), 404
+        return jsonify({
+            "ERROR": "BOARD NOT FOUND"
+        }), 404
 
-    # SETUP TASK LIST
-    task_list = []
+    # SETUP LANE LIST
+    lane_list = []
 
-    # ADD TASK TO TASKS LIST
-    for task in board.tasks:
-        task_list.append({
-            "id": task.id,
-            "title": task.title,
-            "description": task.description,
+    # LOOP OVER LANES
+    for lane in board.lanes:
+
+        # SETUP TASK LIST
+        task_list = []
+
+        # LOOP OVER TASKS
+        for task in lane.tasks:
+            task_list.append({
+                "id": task.id,
+                "title": task.title,
+                "description": task.description,
+            })
+
+        # ADD LANE TO LANE LIST
+        lane_list.append({
+            "id": lane.id,
+            "name": lane.name,
+            "position": lane.position,
+            "tasks": task_list,
         })
 
     # SEND RESPONSE
     return jsonify({
         "id": board.id,
         "name": board.name,
-        "tasks": task_list,
+        "lanes": lane_list,
     }), 200
-
 
 # FUNCTION: CREATE
 def create():
 
     # GET DATA FROM BODY
-    data = request.get_json()
+    data = request.get_json() or {}
     name = data.get("name")
 
     # CHECK FOR NAME ATTRIBUTE
     if not name:
-        return jsonify(
-            {"💥ERROR": "BOARD NAME IS REQUIRED"}
-        ), 400
+        return jsonify({
+            "ERROR": "BOARD NAME IS REQUIRED"
+        }), 400
 
     # CHECK FOR EXISTING BOARD
     existing_board = Board.get_or_none(Board.name == name)
+
+    # CHECK FOR EXISTING BOARD
     if existing_board is not None:
-        return jsonify(
-            {"💥ERROR": "BOARD WITH THIS NAME ALREADY EXISTS"}
-        ), 400
+        return jsonify({
+            "ERROR": "BOARD WITH THIS NAME ALREADY EXISTS"
+        }), 400
 
     # CREATE NEW BOARD
-    board = Board.create(name=name)
+    board = Board.create(
+        name=name
+    )
 
     # SEND RESPONSE
     return jsonify({
         "id": board.id,
         "name": board.name,
-        "tasks": []
+        "lanes": []
     }), 201
+
 
 # FUNCTION: UPDATE
 def update(board_id):
@@ -125,18 +147,36 @@ def update(board_id):
     # GET BOARD
     board = Board.get_or_none(Board.id == board_id)
 
-    # CHECK IF BOARD EXISTS
+    # CHECK FOR BOARD
     if board is None:
-        return jsonify(
-            {"💥ERROR": "BOARD NOT FOUND"}
-        ), 404
+        return jsonify({
+            "ERROR": "BOARD NOT FOUND"
+        }), 404
 
     # GET DATA FROM BODY
     data = request.get_json() or {}
+    name = data.get("name")
 
-    # UPDATE NAME ONLY IF PROVIDED
-    if "name" in data:
-        board.name = data["name"]
+    # CHECK FOR NAME
+    if name is None:
+        return jsonify({
+            "ERROR": "BOARD NAME CANNOT BE EMPTY"
+        }), 400
+
+    # CHECK FOR BOARD WITH SAME NAME
+    existing_board = Board.get_or_none(
+        (Board.name == name) &
+        (Board.id != board_id)
+    )
+
+    # CHECK FOR BOARD
+    if existing_board is not None:
+        return jsonify({
+            "ERROR": "BOARD WITH THIS NAME ALREADY EXISTS"
+        }), 400
+
+    # GET NAME
+    board.name = name
 
     # SAVE CHANGES
     board.save()
@@ -148,14 +188,14 @@ def update(board_id):
         Task.select().order_by(Task.id)
     )
 
-    # EXTRACT THE SINGLE BOARD
+    # EXTRACT SINGLE BOARD
     updated_board = next(iter(boards), None)
 
     # SAFETY CHECK
     if updated_board is None:
-        return jsonify(
-            {"💥ERROR": "BOARD NOT FOUND"}
-        ), 404
+        return jsonify({
+            "ERROR": "BOARD NOT FOUND"
+        }), 404
 
     # SETUP LANE LIST
     lane_list = []
@@ -189,7 +229,6 @@ def update(board_id):
         "lanes": lane_list,
     }), 200
 
-
 # FUNCTION: DELETE
 def delete(board_id):
 
@@ -199,7 +238,7 @@ def delete(board_id):
     # CHECK FOR BOARD
     if board is None:
         return jsonify({
-            "💥ERROR": "BOARD NOT FOUND"
+            "ERROR": "BOARD NOT FOUND"
         }), 404
 
     # SAVE DELETED BOARD
@@ -208,10 +247,8 @@ def delete(board_id):
         "name": board.name,
     }
 
-    # DELETE BOARD
+    # DELETE BOARD WITH RELATED LANES AND TASKS
     board.delete_instance(recursive=True)
 
     # SEND RESPONSE
-    return jsonify(
-        deleted_board,
-    ), 200
+    return jsonify(deleted_board), 200
