@@ -17,12 +17,28 @@ def get_all(board_id):
     # DEFINE LANE LIST
     lane_list = []
 
-    # ADD LANES TO LANE LIST
+    # LOOP OVER LANES
     for lane in board.lanes.order_by(Lane.position):
+
+        # SETUP TASK LIST
+        task_list = []
+
+        # LOOP OVER TASKS
+        for task in lane.tasks:
+
+            # ADD TASKS TO TASK LIST
+            task_list.append({
+                "id": task.id,
+                "title": task.title,
+                "description": task.description,
+            })
+
+        # ADD LANES TO LANE LIST
         lane_list.append({
             "id": lane.id,
             "name": lane.name,
             "position": lane.position,
+            "tasks": task_list,
         })
 
     # SEND RESPONSE
@@ -51,11 +67,26 @@ def get_by_id(board_id, lane_id):
             "ERROR": "NO LANE WAS FOUND"
         }), 404
 
+    # SETUP TASK LIST
+    task_list = []
+
+    # LOOP OVER TAKS
+    for task in lane.tasks:
+
+        # ADD TASKS TO TASK LIST
+        task_list.append({
+            "id": task.id,
+            "title": task.title,
+            "description": task.description,
+
+        })
+
     # SEND RESPONSE
     return jsonify({
         "id": lane.id,
         "name": lane.name,
         "position": lane.position,
+        "tasks": task_list,
     }), 200
 
 # FUNCTION: CREATE
