@@ -85,6 +85,8 @@ def get_by_id(board_id):
 
         # LOOP OVER TASKS
         for task in lane.tasks:
+
+            # ADD TASKS TO TASK LIST
             task_list.append({
                 "id": task.id,
                 "title": task.title,
