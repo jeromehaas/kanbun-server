@@ -1,6 +1,7 @@
 # IMPORTS
 from flask import jsonify, request
 from src.models import Board, Task, Lane
+from peewee import fn
 
 # FUNCTION: GET ALL
 def get_all(board_id):
@@ -93,7 +94,7 @@ def get_by_id(board_id, lane_id):
 def create(board_id):
 
     # GET BOARD
-    board = Board.get_or_none(board_id)
+    board = Board.get_or_none(Board.id == board_id)
 
     # CHECK FOR BOARD
     if board is None:
@@ -104,7 +105,23 @@ def create(board_id):
     # GET DATA FROM BODY
     data = request.get_json() or {}
     name = data.get("name")
-    position = data.get("position")
+
+    # CHECK FOR NAME
+    if not name:
+        return jsonify({
+            "ERROR": "NO BOARD WAS FOUND"
+        }), 400
+
+    # GET HIGHEST POSITION OF BOARDS
+    highest_position = (
+        Lane
+        .select(fn.Max(Lane.position))
+        .where(Lane.board == board)
+        .scalar()
+    )
+
+    # DEFINE POSITION
+    position = (highest_position or 0) + 1
 
     # CREATE LANE
     lane = Lane.create(
@@ -144,21 +161,109 @@ def update(board_id, lane_id):
             "ERROR": "NO LANE WAS FOUND"
         }), 404
 
+    # GET DB HANDLER
+    db = Lane._meta.database
+
     # GET DATA FROM BODY
     data = request.get_json() or {}
     name = data.get("name")
     position = data.get("position")
 
-    # UPDATE NAME IF PROVIDED
-    if "name" in data:
+    # UPDATE NAME IN MEMORY IF PROVIDED
+    if name is not None:
         lane.name = name
 
-    # UPDATE POSITION IF PROVIDED
-    if "position" in data:
-        lane.position = position
+    # HANDLE POSITION UPDATE
+    if position is not None:
 
-    # SAVE CHANGES
-    lane.save()
+        # VALIDATE TYPE
+        if not isinstance(position, int):
+            return jsonify({
+                "ERROR": "POSITION MUST BE AN INTEGER"
+            }), 400
+
+        # GET NEW AND OLD POSITION
+        new_position = position
+        old_position = lane.position
+
+        # VALIDATE VALUE
+        if new_position < 1:
+            return jsonify({
+                "ERROR": "POSITION MUST BE GREATER THAN OR EQUAL TO 1"
+            }), 400
+
+        # ONLY REORDER IF POSITION CHANGED
+        if new_position != old_position:
+
+            # GET HIGHEST POSITION OF LANES
+            highest_position = (
+                Lane
+                .select(fn.MAX(Lane.position))
+                .where(Lane.board == board)
+                .scalar()
+            ) or 0
+
+            # CLAMP TO LAST VALID POSITION
+            if new_position > highest_position:
+                new_position = highest_position
+
+            # START BULK OPERATION
+            with db.atomic():
+
+                # MOVE CURRENT LANE TO A TEMPORARY FREE POSITION
+                temp_position = highest_position + 1
+                lane.position = temp_position
+                lane.save(only=[Lane.position])
+
+                # IF NEW POSITION IS SMALLER THAN OLD POSITION
+                if new_position < old_position:
+
+                    # UPDATE LANE POSITIONS
+                    (Lane
+                     .update({Lane.position: Lane.position + 1})
+                     .where(
+                         (Lane.board == board) &
+                         (Lane.id != lane.id) &
+                         (Lane.position >= new_position) &
+                         (Lane.position < old_position)
+                     )
+                     .execute())
+
+                # IF NEW POSITION IS BIGGER THAN OLD POSITION
+                else:
+
+                    # UPDATE LANE POSITIONS
+                    (Lane
+                     .update({Lane.position: Lane.position - 1})
+                     .where(
+                         (Lane.board == board) &
+                         (Lane.id != lane.id) &
+                         (Lane.position > old_position) &
+                         (Lane.position <= new_position)
+                     )
+                     .execute())
+
+                # FINAL POSITION + POSSIBLE NAME CHANGE
+                lane.position = new_position
+                lane.save(only=lane.dirty_fields)
+
+        # IF POSITIONS HAVE NOT CHANGED
+        else:
+
+            # CHECK IF DIRTY FIELDS ARE AVAILABLE
+            if lane.dirty_fields:
+
+                # SAVE DIRTY FIELDS
+                lane.save(only=lane.dirty_fields)
+
+    # IF POSITION IS NOT AVAILABLE
+    else:
+
+        # CHECK IF DIRTY FIELDS ARE AVAILABLE
+        if lane.dirty_fields:
+
+            # SAVE DIRTY FIELDS
+            lane.save(only=lane.dirty_fields)
 
     # SEND RESPONSE
     return jsonify({
@@ -203,4 +308,6 @@ def delete(board_id, lane_id):
     lane.delete_instance(recursive=True)
 
     # SEND RESPONSE
-    return jsonify(deleted_lane), 200
+    return jsonify(
+        deleted_lane
+    ), 200
