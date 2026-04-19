@@ -30,6 +30,10 @@ Create a `.env` file in the project root:
 # FLASK
 FLASK_APP=app:create_app
 FLASK_DEBUG=1
+FLASK_RUN_PORT=5001
+
+# APP
+APP_ENV=dev
 
 # DATABSE
 DATABASE_USER=
@@ -43,5 +47,5 @@ DATABASE_DB_NAME=
 In the root of the application, run this command:
 
 ```bash
-flask --app src/app.py run
+flask --app src/app.py run -p 5001
 ```
