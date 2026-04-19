@@ -1,9 +1,20 @@
 # IMPORTS
 from src.models import db, Board, Task, Lane
 
+# DEFINE MODELS
+models = [Board, Lane, Task]
+
 # FUNCTION: ENSURE TABLES
 def ensure_tables():
 
-    # IF DB CONNECTION IS SETUP, CREATE TABLES
+    # CREATE TABLES
     with db:
-        db.create_tables([Board, Lane, Task])
+        db.create_tables(models)
+
+# FUNCTION: RESET TABLES
+def reset_tables():
+
+    # DROP AND RECREATE ALL TABLES
+    with db:
+        db.drop_tables(models, safe=True)
+        db.create_tables(models, safe=True)

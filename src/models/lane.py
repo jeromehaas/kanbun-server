@@ -15,6 +15,5 @@ class Lane(BaseModel):
     class Meta:
         table_name = "lanes"
         indexes = (
-            (("board", "position"), True),
             (("board", "name"), True),
         )

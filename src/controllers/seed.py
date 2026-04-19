@@ -2,6 +2,7 @@
 import os
 from flask import jsonify
 from src.services.seed_service import run_seed
+from src.database import reset_tables
 
 # FUNCTION: CREATE
 def create():
@@ -17,6 +18,9 @@ def create():
 
     # TRY-CATCH BLOCK
     try:
+
+        # REST TABLES
+        reset_tables()
 
         # RUN SEED SERVICE
         run_seed()
