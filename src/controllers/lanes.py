@@ -104,12 +104,19 @@ def create(board_id):
 
     # GET DATA FROM BODY
     data = request.get_json() or {}
-    name = data.get("name")
+    lane_name = data.get("name")
 
     # CHECK FOR NAME
-    if not name:
+    if not lane_name:
         return jsonify({
             "ERROR": "NO BOARD WAS FOUND"
+        }), 400
+
+    # CHECK FOR EXITING LANE WITH SAME NAME
+    existing_lane = Lane.get_or_none(Lane.name == lane_name)
+    if existing_lane:
+        return jsonify({
+            "ERROR": "A LANE WITH THIS NAME ALREADY EXISTS"
         }), 400
 
     # GET HIGHEST POSITION OF BOARDS
@@ -126,7 +133,7 @@ def create(board_id):
     # CREATE LANE
     lane = Lane.create(
         board_id=board_id,
-        name=name,
+        name=lane_name,
         position=position,
     )
 
@@ -166,12 +173,19 @@ def update(board_id, lane_id):
 
     # GET DATA FROM BODY
     data = request.get_json() or {}
-    name = data.get("name")
+    lane_name = data.get("name")
     position = data.get("position")
 
     # UPDATE NAME IN MEMORY IF PROVIDED
-    if name is not None:
-        lane.name = name
+    if lane_name is not None:
+        lane.name = lane_name
+
+    # CHECK FOR EXITING LANE WITH SAME NAME
+    existing_lane = Lane.get_or_none(Lane.name == lane_name)
+    if existing_lane:
+        return jsonify({
+            "ERROR": "A LANE WITH THIS NAME ALREADY EXISTS"
+        }), 400
 
     # HANDLE POSITION UPDATE
     if position is not None:
