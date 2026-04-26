@@ -135,13 +135,41 @@ def create():
         name=name
     )
 
+    # DEFINE DEFAULT LANES
+    default_lanes = [
+        "Open",
+        "In Progress",
+        "Review",
+        "Done",
+    ]
+
+    # SETUP LANE LIST
+    lane_list = []
+
+    # LOOP OVER DEFAULT LANES
+    for position, lane_name in enumerate(default_lanes, start=1):
+
+        # CREATE LANES
+        lane = Lane.create(
+            board=board,
+            name=lane_name,
+            position=position
+        )
+
+        # APPEND LANE TO LANE LIST
+        lane_list.append({
+            "id": lane.id,
+            "name": lane.name,
+            "position": lane.position,
+            "tasks": [],
+        })
+
     # SEND RESPONSE
     return jsonify({
         "id": board.id,
         "name": board.name,
-        "lanes": []
+        "lanes": lane_list,
     }), 201
-
 
 # FUNCTION: UPDATE
 def update(board_id):
@@ -253,4 +281,6 @@ def delete(board_id):
     board.delete_instance(recursive=True)
 
     # SEND RESPONSE
-    return jsonify(deleted_board), 200
+    return jsonify(
+        deleted_board
+    ), 200
