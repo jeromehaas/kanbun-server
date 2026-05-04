@@ -1,6 +1,8 @@
 # CHANGELOG
 
-All notable changes to this project will be documented in this file.507ee5c Merge pull request #7 from jeromehaas/feature/license
+All notable changes to this project will be documented in this file.
+
+<!-- 507ee5c Merge pull request #7 from jeromehaas/feature/license -->
 
 ## [v1.0.0] - 26.04.2026
 Setup: mit license
