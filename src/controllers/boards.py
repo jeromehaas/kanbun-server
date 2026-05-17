@@ -10,7 +10,7 @@ def get_all():
     boards = prefetch(
         Board.select().order_by(Board.id),
         Lane.select().order_by(Lane.position),
-        Task.select().order_by(Task.id)
+        Task.select().order_by(Task.position, Task.id)
     )
 
     # SETUP BOARD LIST
@@ -34,6 +34,7 @@ def get_all():
                     "id": task.id,
                     "title": task.title,
                     "description": task.description,
+                    "position": task.position,
                 })
 
             # ADD LANE TO LANE LIST
@@ -62,7 +63,7 @@ def get_by_id(board_id):
     boards = prefetch(
         Board.select().where(Board.id == board_id),
         Lane.select().order_by(Lane.position),
-        Task.select().order_by(Task.id)
+        Task.select().order_by(Task.position, Task.id)
     )
 
     # EXTRACT SINGLE BOARD
@@ -91,6 +92,7 @@ def get_by_id(board_id):
                 "id": task.id,
                 "title": task.title,
                 "description": task.description,
+                "position": task.position,
             })
 
         # ADD LANE TO LANE LIST
@@ -215,7 +217,7 @@ def update(board_id):
     boards = prefetch(
         Board.select().where(Board.id == board_id),
         Lane.select().order_by(Lane.position),
-        Task.select().order_by(Task.id)
+        Task.select().order_by(Task.position, Task.id)
     )
 
     # EXTRACT SINGLE BOARD
@@ -242,6 +244,7 @@ def update(board_id):
                 "id": task.id,
                 "title": task.title,
                 "description": task.description,
+                "position": task.position,
             })
 
         # ADD LANE TO LANE LIST
