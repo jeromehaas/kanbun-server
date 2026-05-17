@@ -190,7 +190,6 @@ def update(board_id, lane_id, task_id):
         task.description = description
 
     # UPDATE LANE
-    # TODO: Consider validating that the target lane belongs to the same board
     if "lane_id" in data:
         target_lane = Lane.get_or_none(
             (Lane.id == new_lane_id) &

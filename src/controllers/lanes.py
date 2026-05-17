@@ -190,6 +190,9 @@ def update(board_id, lane_id):
             }), 400
         lane.name = lane_name
 
+        # UPDATE NAME IN MEMORY IF PROVIDED
+        lane.name = lane_name
+
     # HANDLE POSITION UPDATE
     if position is not None:
 
