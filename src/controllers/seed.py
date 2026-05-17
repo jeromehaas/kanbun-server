@@ -19,7 +19,7 @@ def create():
     # TRY-CATCH BLOCK
     try:
 
-        # REST TABLES
+        # RESET TABLES
         reset_tables()
 
         # RUN SEED SERVICE

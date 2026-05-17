@@ -17,7 +17,7 @@ def get_all(board_id, lane_id):
     # GET LANE FROM BOARD
     lane = Lane.get_or_none(
         (Lane.id == lane_id) &
-        (Lane.board == board_id)
+        (Lane.board == board)
     )
 
     # CHECK FOR LANE
@@ -59,7 +59,7 @@ def get_by_id(board_id, lane_id, task_id):
     # GET LANE FROM BOARD
     lane = Lane.get_or_none(
         (Lane.id == lane_id) &
-        (Lane.board == board_id)
+        (Lane.board == board)
     )
 
     # CHECK FOR LANE
@@ -105,7 +105,7 @@ def create(board_id, lane_id):
     # GET LANE FROM BOARD
     lane = Lane.get_or_none(
         (Lane.id == lane_id) &
-        (Lane.board == board_id)
+        (Lane.board == board)
     )
 
     # CHECK FOR LANE
@@ -178,7 +178,7 @@ def update(board_id, lane_id, task_id):
     # GET DATA FROM BODY
     data = request.get_json() or {}
     title = data.get("title")
-    lane = data.get("lane")
+    new_lane_id = data.get("lane_id")
     description = data.get("description")
 
     # UPDATE TITLE
@@ -191,10 +191,15 @@ def update(board_id, lane_id, task_id):
 
     # UPDATE LANE
     if "lane_id" in data:
-        task.lane = Lane.get_or_none(
-            (Lane.id == lane.id) &
-            (Lane.board == board_id)
+        target_lane = Lane.get_or_none(
+            (Lane.id == new_lane_id) &
+            (Lane.board == board)
         )
+        if target_lane is None:
+            return jsonify({
+                "ERROR": "TARGET LANE NOT FOUND IN BOARD"
+            }), 404
+        task.lane = target_lane
 
     # SAVE CHANGES
     task.save()
@@ -221,7 +226,7 @@ def delete(board_id, lane_id, task_id):
     # GET LANE FROM BOARD
     lane = Lane.get_or_none(
         (Lane.id == lane_id) &
-        (Lane.board == board_id)
+        (Lane.board == board)
     )
 
     # CHECK FOR LANE

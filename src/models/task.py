@@ -1,4 +1,5 @@
-from peewee import (CharField, TextField, ForeignKeyField, DateTimeField)
+# IMPORTS
+from peewee import CharField, TextField, ForeignKeyField, DateTimeField
 from datetime import datetime
 from .base import BaseModel
 from .lane import Lane

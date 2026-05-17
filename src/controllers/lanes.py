@@ -51,7 +51,7 @@ def get_all(board_id):
 def get_by_id(board_id, lane_id):
 
     # GET BOARD
-    board = Board.get_or_none(Board.id == board_id);
+    board = Board.get_or_none(Board.id == board_id)
 
     # CHECK FOR BOARD
     if board is None:
@@ -71,7 +71,7 @@ def get_by_id(board_id, lane_id):
     # SETUP TASK LIST
     task_list = []
 
-    # LOOP OVER TAKS
+    # LOOP OVER TASKS
     for task in lane.tasks:
 
         # ADD TASKS TO TASK LIST
@@ -109,20 +109,17 @@ def create(board_id):
     # CHECK FOR NAME
     if not lane_name:
         return jsonify({
-            "ERROR": "NO LANE NAME WAS PROVIDED"
+            "ERROR": "LANE NAME IS REQUIRED"
         }), 400
 
-    # CHECK FOR EXISTING LANE WITH SAME NAME IN SAME BOARD
-    existing_lane = Lane.get_or_none(
-        (Lane.board == board) &
-        (Lane.name == lane_name)
-    )
-
+    # CHECK FOR EXISTING LANE WITH SAME NAME (SCOPED TO BOARD)
+    existing_lane = Lane.get_or_none((Lane.name == lane_name) & (Lane.board == board))
     if existing_lane:
         return jsonify({
-            "ERROR": "A LANE WITH THIS NAME ALREADY EXISTS IN THIS BOARD"
+            "ERROR": "A LANE WITH THIS NAME ALREADY EXISTS"
         }), 400
-    # GET HIGHEST POSITION OF BOARDS
+
+    # GET HIGHEST POSITION OF LANES
     highest_position = (
         Lane
         .select(fn.Max(Lane.position))
@@ -179,19 +176,19 @@ def update(board_id, lane_id):
     lane_name = data.get("name")
     position = data.get("position")
 
-    # CHECK FOR EXISTING LANE WITH SAME NAME IN SAME BOARD
+    # UPDATE NAME IN MEMORY IF PROVIDED
     if lane_name is not None:
+        # CHECK FOR EXISTING LANE WITH SAME NAME (SCOPED TO BOARD, EXCLUDING SELF)
         existing_lane = Lane.get_or_none(
-            (Lane.board == board) &
             (Lane.name == lane_name) &
-            (Lane.id != lane.id)
+            (Lane.board == board) &
+            (Lane.id != lane_id)
         )
-
-        # CHECK FOR EXISTING LANE
         if existing_lane:
             return jsonify({
-                "ERROR": "A LANE WITH THIS NAME ALREADY EXISTS IN THIS BOARD"
+                "ERROR": "A LANE WITH THIS NAME ALREADY EXISTS"
             }), 400
+        lane.name = lane_name
 
         # UPDATE NAME IN MEMORY IF PROVIDED
         lane.name = lane_name
