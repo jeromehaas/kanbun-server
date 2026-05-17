@@ -1,5 +1,5 @@
 # IMPORTS
-from peewee import CharField, TextField, ForeignKeyField, DateTimeField
+from peewee import CharField, TextField, ForeignKeyField, DateTimeField, IntegerField
 from datetime import datetime
 from .base import BaseModel
 from .lane import Lane
@@ -9,6 +9,7 @@ class Task(BaseModel):
     lane = ForeignKeyField(Lane, backref="tasks", on_delete="RESTRICT")
     title = CharField()
     description = TextField(null=True)
+    position = IntegerField(default=0)
     created_at = DateTimeField(default=datetime.utcnow)
     updated_at = DateTimeField(default=datetime.utcnow)
 

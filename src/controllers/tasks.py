@@ -26,8 +26,8 @@ def get_all(board_id, lane_id):
             "ERROR": "LANE NOT FOUND IN BOARD"
         }), 404
 
-    # GET TASKS
-    tasks = Task.select().where(Task.lane == lane).order_by(Task.id)
+    # GET TASKS ORDERED BY POSITION
+    tasks = Task.select().where(Task.lane == lane).order_by(Task.position, Task.id)
 
     # BUILD TASK LIST
     task_list = []
@@ -38,6 +38,7 @@ def get_all(board_id, lane_id):
             "id": task.id,
             "title": task.title,
             "description": task.description,
+            "position": task.position,
         })
 
     # SEND RESPONSE
@@ -85,6 +86,7 @@ def get_by_id(board_id, lane_id, task_id):
         "id": task.id,
         "title": task.title,
         "description": task.description,
+        "position": task.position,
         "lane_id": task.lane.id,
         "board_id": task.lane.board.id,
     }), 200
@@ -125,11 +127,23 @@ def create(board_id, lane_id):
             "ERROR": "TITLE IS REQUIRED"
         }), 400
 
+    # DETERMINE NEXT POSITION
+    max_position = (
+        Task.select(Task.position)
+        .where(Task.lane == lane)
+        .order_by(Task.position.desc())
+        .first()
+    )
+
+    # GET NEXT POSITION
+    next_position = (max_position.position + 1) if max_position else 0
+
     # CREATE TASK
     task = Task.create(
         title=title,
         description=description,
         lane=lane,
+        position=next_position,
     )
 
     # SEND RESPONSE
@@ -137,7 +151,9 @@ def create(board_id, lane_id):
         "id": task.id,
         "title": task.title,
         "description": task.description,
+        "position": task.position,
     }), 201
+
 
 # FUNCTION: UPDATE
 def update(board_id, lane_id, task_id):
@@ -180,6 +196,7 @@ def update(board_id, lane_id, task_id):
     title = data.get("title")
     new_lane_id = data.get("lane_id")
     description = data.get("description")
+    new_position = data.get("position")
 
     # UPDATE TITLE
     if "title" in data:
@@ -199,7 +216,77 @@ def update(board_id, lane_id, task_id):
             return jsonify({
                 "ERROR": "TARGET LANE NOT FOUND IN BOARD"
             }), 404
+
+        # COMPACT POSITIONS IN THE SOURCE LANE
+        old_lane = lane
+        old_position = task.position
+
+        # UPDATE TASK POSITION
+        Task.update(position=Task.position - 1).where(
+            (Task.lane == old_lane) &
+            (Task.position > old_position)
+        ).execute()
+
+        # DETERMINE INSERTION POSITION IN TARGET LANE
+        if new_position is not None:
+
+            # SHIFT TASKS AT AND AFTER THE TARGET POSITION DOWN
+            Task.update(position=Task.position + 1).where(
+                (Task.lane == target_lane) &
+                (Task.position >= new_position)
+            ).execute()
+
+            # UPDATE POSITION
+            task.position = new_position
+
+        # IF NOT POSITION IS AVAILABLE
+        else:
+
+            # APPEND AT END OF TARGET LANE
+            max_pos = (
+                Task.select(Task.position)
+                .where(Task.lane == target_lane)
+                .order_by(Task.position.desc())
+                .first()
+            )
+
+            # UPDATE TASK POSITION
+            task.position = (max_pos.position + 1) if max_pos else 0
+
+        # GET LANE FOR TAKS
         task.lane = target_lane
+
+    # IF HAS NO NEW POSITION BUT AN EXISTING POSITION
+    elif "position" in data:
+
+        # REORDER WITHIN THE SAME LANE
+        old_position = task.position
+
+        # IF GOT NEW POSITION
+        if new_position is not None and new_position != old_position:
+
+            # IF POSITION BIGGER THAN OLD ONE
+            if new_position > old_position:
+
+                # MOVING DOWN
+                Task.update(position=Task.position - 1).where(
+                    (Task.lane == lane) &
+                    (Task.position > old_position) &
+                    (Task.position <= new_position)
+                ).execute()
+
+            # IF POSITION ID SMALLER OR SAME AS BEFORE
+            else:
+
+                # MOVING UP
+                Task.update(position=Task.position + 1).where(
+                    (Task.lane == lane) &
+                    (Task.position >= new_position) &
+                    (Task.position < old_position)
+                ).execute()
+
+            # UPDATE TAK POSITION
+            task.position = new_position
 
     # SAVE CHANGES
     task.save()
@@ -209,6 +296,7 @@ def update(board_id, lane_id, task_id):
         "id": task.id,
         "title": task.title,
         "description": task.description,
+        "position": task.position,
     }), 200
 
 # FUNCTION: DELETE
@@ -252,7 +340,14 @@ def delete(board_id, lane_id, task_id):
         "id": task.id,
         "title": task.title,
         "description": task.description,
+        "position": task.position,
     }
+
+    # COMPACT POSITIONS IN LANE
+    Task.update(position=Task.position - 1).where(
+        (Task.lane == lane) &
+        (Task.position > task.position)
+    ).execute()
 
     # DELETE TASK
     task.delete_instance()
