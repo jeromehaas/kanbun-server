@@ -1,6 +1,26 @@
 # IMPORTS
 from flask import jsonify, request
 from src.models import Board, Task, Lane
+from src.realtime import broadcast_board_event
+
+# FUNCTION: NORMALIZE TASK POSITIONS
+def normalize_task_positions(lane):
+
+    # GET TASKS IN STABLE ORDER
+    tasks = list(
+        Task.select()
+        .where(Task.lane == lane)
+        .order_by(Task.position, Task.id)
+    )
+
+    # REWRITE POSITIONS TO A COMPACT ZERO-BASED SEQUENCE
+    for index, lane_task in enumerate(tasks):
+        if lane_task.position != index:
+            lane_task.position = index
+            lane_task.save(only=[Task.position])
+
+    # RETURN ORDERED TASKS
+    return tasks
 
 # FUNCTION: GET ALL
 def get_all(board_id, lane_id):
@@ -116,6 +136,9 @@ def create(board_id, lane_id):
             "ERROR": "LANE NOT FOUND IN BOARD"
         }), 404
 
+    # NORMALIZE EXISTING TASK POSITIONS BEFORE APPENDING
+    normalize_task_positions(lane)
+
     # GET DATA FROM BODY
     data = request.get_json() or {}
     title = data.get("title")
@@ -144,6 +167,19 @@ def create(board_id, lane_id):
         description=description,
         lane=lane,
         position=next_position,
+    )
+
+    # BROADCAST TASK CREATION
+    broadcast_board_event(
+        board_id,
+        "task.created",
+        {
+            "task_id": task.id,
+            "lane_id": lane.id,
+            "position": task.position,
+            "title": task.title,
+        },
+        request.headers.get("X-Client-Id"),
     )
 
     # SEND RESPONSE
@@ -191,6 +227,12 @@ def update(board_id, lane_id, task_id):
             "ERROR": "TASK NOT FOUND IN LANE"
         }), 404
 
+    # NORMALIZE SOURCE LANE POSITIONS BEFORE REORDERING
+    normalize_task_positions(lane)
+    task = Task.get_by_id(task.id)
+    original_lane_id = task.lane.id
+    original_position = task.position
+
     # GET DATA FROM BODY
     data = request.get_json() or {}
     title = data.get("title")
@@ -217,6 +259,10 @@ def update(board_id, lane_id, task_id):
                 "ERROR": "TARGET LANE NOT FOUND IN BOARD"
             }), 404
 
+        # NORMALIZE TARGET LANE BEFORE INSERTING INTO IT
+        if target_lane.id != lane.id:
+            normalize_task_positions(target_lane)
+
         # COMPACT POSITIONS IN THE SOURCE LANE
         old_lane = lane
         old_position = task.position
@@ -229,6 +275,10 @@ def update(board_id, lane_id, task_id):
 
         # DETERMINE INSERTION POSITION IN TARGET LANE
         if new_position is not None:
+
+            # CLAMP THE TARGET POSITION TO THE LANE BOUNDS
+            target_task_count = Task.select().where(Task.lane == target_lane).count()
+            new_position = max(0, min(new_position, target_task_count))
 
             # SHIFT TASKS AT AND AFTER THE TARGET POSITION DOWN
             Task.update(position=Task.position + 1).where(
@@ -265,6 +315,10 @@ def update(board_id, lane_id, task_id):
         # IF GOT NEW POSITION
         if new_position is not None and new_position != old_position:
 
+            # CLAMP THE TARGET POSITION TO THE LANE BOUNDS
+            lane_task_count = Task.select().where(Task.lane == lane).count()
+            new_position = max(0, min(new_position, lane_task_count - 1))
+
             # IF POSITION BIGGER THAN OLD ONE
             if new_position > old_position:
 
@@ -290,6 +344,32 @@ def update(board_id, lane_id, task_id):
 
     # SAVE CHANGES
     task.save()
+
+    # DETECT CARD MOVES FOR REALTIME UPDATES
+    task_was_moved = (
+        task.lane.id != original_lane_id or
+        task.position != original_position
+    )
+
+    # BROADCAST TASK UPDATE
+    broadcast_board_event(
+        board_id,
+        "task.moved" if task_was_moved else "task.updated",
+        {
+            "task_id": task.id,
+            "title": task.title,
+            "from_lane_id": original_lane_id,
+            "to_lane_id": task.lane.id,
+            "from_position": original_position,
+            "to_position": task.position,
+            "message": (
+                f'Task "{task.title}" moved to a new position'
+                if task_was_moved
+                else f'Task "{task.title}" was updated'
+            ),
+        },
+        request.headers.get("X-Client-Id"),
+    )
 
     # SEND RESPONSE
     return jsonify({
@@ -335,6 +415,10 @@ def delete(board_id, lane_id, task_id):
             "ERROR": "TASK NOT FOUND IN LANE"
         }), 404
 
+    # NORMALIZE POSITIONS BEFORE REMOVING A TASK FROM THE LANE
+    normalize_task_positions(lane)
+    task = Task.get_by_id(task.id)
+
     # SAVE TASK DATA BEFORE DELETE
     deleted_task = {
         "id": task.id,
@@ -351,6 +435,20 @@ def delete(board_id, lane_id, task_id):
 
     # DELETE TASK
     task.delete_instance()
+
+    # BROADCAST TASK DELETION
+    broadcast_board_event(
+        board_id,
+        "task.deleted",
+        {
+            "task_id": deleted_task["id"],
+            "lane_id": lane.id,
+            "title": deleted_task["title"],
+            "position": deleted_task["position"],
+            "message": f'Task "{deleted_task["title"]}" was deleted',
+        },
+        request.headers.get("X-Client-Id"),
+    )
 
     # SEND RESPONSE
     return jsonify(deleted_task), 200

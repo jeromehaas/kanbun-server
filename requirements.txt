@@ -1,4 +1,5 @@
 Flask
+Flask-Sock
 peewee
 python-dotenv
 psycopg[binary]

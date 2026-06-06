@@ -2,6 +2,7 @@
 from flask import jsonify, request
 from peewee import prefetch
 from src.models import Board, Task, Lane
+from src.realtime import broadcast_board_event
 
 # FUNCTION: GET ALL
 def get_all():
@@ -255,6 +256,17 @@ def update(board_id):
             "tasks": task_list,
         })
 
+    # BROADCAST BOARD UPDATE
+    broadcast_board_event(
+        board_id,
+        "board.updated",
+        {
+            "board_id": updated_board.id,
+            "name": updated_board.name,
+        },
+        request.headers.get("X-Client-Id"),
+    )
+
     # SEND RESPONSE
     return jsonify({
         "id": updated_board.id,
@@ -282,6 +294,18 @@ def delete(board_id):
 
     # DELETE BOARD WITH RELATED LANES AND TASKS
     board.delete_instance(recursive=True)
+
+    # BROADCAST BOARD DELETION
+    broadcast_board_event(
+        board_id,
+        "board.deleted",
+        {
+            "board_id": deleted_board["id"],
+            "name": deleted_board["name"],
+            "message": f'Board "{deleted_board["name"]}" was deleted',
+        },
+        request.headers.get("X-Client-Id"),
+    )
 
     # SEND RESPONSE
     return jsonify(
