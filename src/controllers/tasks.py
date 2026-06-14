@@ -1,7 +1,7 @@
 # IMPORTS
 from flask import jsonify, request
 from src.models import Board, Task, Lane
-from src.realtime import broadcast_board_event
+from src.realtime import broadcast_board_event, get_board_event_actor_name
 
 # FUNCTION: NORMALIZE TASK POSITIONS
 def normalize_task_positions(lane):
@@ -169,6 +169,9 @@ def create(board_id, lane_id):
         position=next_position,
     )
 
+    # GET ACTOR NAME
+    actor_name = get_board_event_actor_name()
+
     # BROADCAST TASK CREATION
     broadcast_board_event(
         board_id,
@@ -178,6 +181,7 @@ def create(board_id, lane_id):
             "lane_id": lane.id,
             "position": task.position,
             "title": task.title,
+            "message": f'{ actor_name } created task { task.title }',
         },
         request.headers.get("X-Client-Id"),
     )
@@ -351,6 +355,17 @@ def update(board_id, lane_id, task_id):
         task.position != original_position
     )
 
+    # GET ACTOR NAME
+    actor_name = get_board_event_actor_name()
+
+    # BUILD REALTIME MESSAGE
+    if task_was_moved and task.lane.id != original_lane_id:
+        realtime_message = f'{ actor_name } moved task { task.title } to lane { task.lane.name }'
+    elif task_was_moved:
+        realtime_message = f'{ actor_name } reordered task { task.title }'
+    else:
+        realtime_message = f'{ actor_name } updated task { task.title }'
+
     # BROADCAST TASK UPDATE
     broadcast_board_event(
         board_id,
@@ -362,11 +377,7 @@ def update(board_id, lane_id, task_id):
             "to_lane_id": task.lane.id,
             "from_position": original_position,
             "to_position": task.position,
-            "message": (
-                f'Task "{task.title}" moved to a new position'
-                if task_was_moved
-                else f'Task "{task.title}" was updated'
-            ),
+            "message": realtime_message,
         },
         request.headers.get("X-Client-Id"),
     )
@@ -436,6 +447,9 @@ def delete(board_id, lane_id, task_id):
     # DELETE TASK
     task.delete_instance()
 
+    # GET ACTOR NAME
+    actor_name = get_board_event_actor_name()
+
     # BROADCAST TASK DELETION
     broadcast_board_event(
         board_id,
@@ -445,7 +459,7 @@ def delete(board_id, lane_id, task_id):
             "lane_id": lane.id,
             "title": deleted_task["title"],
             "position": deleted_task["position"],
-            "message": f'Task "{deleted_task["title"]}" was deleted',
+            "message": f'{ actor_name } deleted task { deleted_task["title"] }',
         },
         request.headers.get("X-Client-Id"),
     )

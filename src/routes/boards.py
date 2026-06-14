@@ -1,9 +1,16 @@
 # IMPORTS
 from flask import Blueprint
 import src.controllers.boards as boards
+from src.services.auth_service import require_http_auth
 
 # CREATE BLUEPRINT
 boards_bp = Blueprint("boards", __name__)
+
+
+# HOOK: REQUIRE AUTHENTICATION
+@boards_bp.before_request
+def authenticate_board_requests():
+    return require_http_auth()
 
 # ROUTE: GET ALL
 @boards_bp.get("/boards")

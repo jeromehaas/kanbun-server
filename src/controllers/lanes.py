@@ -2,7 +2,7 @@
 from flask import jsonify, request
 from src.models import Board, Task, Lane
 from peewee import fn
-from src.realtime import broadcast_board_event
+from src.realtime import broadcast_board_event, get_board_event_actor_name
 
 # FUNCTION: GET ALL
 def get_all(board_id):
@@ -138,6 +138,9 @@ def create(board_id):
         position=position,
     )
 
+    # GET ACTOR NAME
+    actor_name = get_board_event_actor_name()
+
     # BROADCAST LANE CREATION
     broadcast_board_event(
         board_id,
@@ -146,6 +149,7 @@ def create(board_id):
             "lane_id": lane.id,
             "name": lane.name,
             "position": lane.position,
+            "message": f'{ actor_name } created lane { lane.name }',
         },
         request.headers.get("X-Client-Id"),
     )
@@ -181,6 +185,10 @@ def update(board_id, lane_id):
             "ERROR": "NO LANE WAS FOUND"
         }), 404
 
+    # SAVE ORIGINAL VALUES FOR REALTIME COPY
+    original_name = lane.name
+    original_position = lane.position
+
     # GET DB HANDLER
     db = Lane._meta.database
 
@@ -191,17 +199,19 @@ def update(board_id, lane_id):
 
     # UPDATE NAME IN MEMORY IF PROVIDED
     if lane_name is not None:
-        # CHECK FOR EXISTING LANE WITH SAME NAME (SCOPED TO BOARD, EXCLUDING SELF)
+
+        # GET EXISTING LANE WITH SAME NAME (SCOPED TO BOARD, EXCLUDING SELF)
         existing_lane = Lane.get_or_none(
             (Lane.name == lane_name) &
             (Lane.board == board) &
             (Lane.id != lane_id)
         )
+
+        # CHECK FOR EXISTING LANE
         if existing_lane:
             return jsonify({
                 "ERROR": "A LANE WITH THIS NAME ALREADY EXISTS"
             }), 400
-        lane.name = lane_name
 
         # UPDATE NAME IN MEMORY IF PROVIDED
         lane.name = lane_name
@@ -299,6 +309,21 @@ def update(board_id, lane_id):
             lane.save(only=lane.dirty_fields)
 
     # BROADCAST LANE UPDATE
+    lane_was_renamed = lane.name != original_name
+    lane_was_moved = lane.position != original_position
+    actor_name = get_board_event_actor_name()
+
+    # DEFINE REALTIME MESSAGE DEPENDING ON EVENT
+    if lane_was_renamed and lane_was_moved:
+        realtime_message = f'{ actor_name } renamed lane { original_name } to { lane.name } and moved it'
+    elif lane_was_renamed:
+        realtime_message = f'{ actor_name } renamed lane { original_name } to { lane.name }'
+    elif lane_was_moved:
+        realtime_message = f'{ actor_name } moved lane { lane.name }'
+    else:
+        realtime_message = f'{ actor_name } updated lane { lane.name }'
+
+    # BROADCAST BOARD EVENT
     broadcast_board_event(
         board_id,
         "lane.updated",
@@ -306,6 +331,7 @@ def update(board_id, lane_id):
             "lane_id": lane.id,
             "name": lane.name,
             "position": lane.position,
+            "message": realtime_message,
         },
         request.headers.get("X-Client-Id"),
     )
@@ -352,11 +378,17 @@ def delete(board_id, lane_id):
     # DELETE LANE
     lane.delete_instance(recursive=True)
 
+    # GET ACTOR NAME
+    actor_name = get_board_event_actor_name()
+
     # BROADCAST LANE DELETION
     broadcast_board_event(
         board_id,
         "lane.deleted",
-        deleted_lane,
+        {
+            **deleted_lane,
+            "message": f'{ actor_name } deleted lane { deleted_lane["name"] }',
+        },
         request.headers.get("X-Client-Id"),
     )
 

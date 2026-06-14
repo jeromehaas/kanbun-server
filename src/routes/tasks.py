@@ -1,9 +1,15 @@
 # IMPORTS
 from flask import Blueprint
 import src.controllers.tasks as tasks
+from src.services.auth_service import require_http_auth
 
 # CREATE BLUEPRINT
 tasks_bp = Blueprint("tasks", __name__)
+
+# HOOK: REQUIRE AUTHENTICATION
+@tasks_bp.before_request
+def authenticate_task_requests():
+    return require_http_auth()
 
 # GET ALL TASKS IN A LANE
 @tasks_bp.get("/boards/<int:board_id>/lanes/<int:lane_id>/tasks")
