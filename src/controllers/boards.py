@@ -2,7 +2,7 @@
 from flask import jsonify, request
 from peewee import prefetch
 from src.models import Board, Task, Lane
-from src.realtime import broadcast_board_event
+from src.realtime import broadcast_board_event, get_board_event_actor_name
 
 # FUNCTION: GET ALL
 def get_all():
@@ -186,6 +186,9 @@ def update(board_id):
             "ERROR": "BOARD NOT FOUND"
         }), 404
 
+    # SAVE ORIGINAL NAME FOR REALTIME COPY
+    original_name = board.name
+
     # GET DATA FROM BODY
     data = request.get_json() or {}
     name = data.get("name")
@@ -256,6 +259,16 @@ def update(board_id):
             "tasks": task_list,
         })
 
+    # GET ACTOR NAME
+    actor_name = get_board_event_actor_name()
+
+    # DEFINE MESSAGE
+    realtime_message = (
+        f'{ actor_name } renamed board { original_name } to { updated_board.name }'
+        if updated_board.name != original_name
+        else f'{ actor_name } updated board { updated_board.name }'
+    )
+
     # BROADCAST BOARD UPDATE
     broadcast_board_event(
         board_id,
@@ -263,6 +276,7 @@ def update(board_id):
         {
             "board_id": updated_board.id,
             "name": updated_board.name,
+            "message": realtime_message,
         },
         request.headers.get("X-Client-Id"),
     )
@@ -292,6 +306,9 @@ def delete(board_id):
         "name": board.name,
     }
 
+    # GET ACTOR NAME
+    actor_name = get_board_event_actor_name()
+
     # DELETE BOARD WITH RELATED LANES AND TASKS
     board.delete_instance(recursive=True)
 
@@ -302,7 +319,7 @@ def delete(board_id):
         {
             "board_id": deleted_board["id"],
             "name": deleted_board["name"],
-            "message": f'Board "{deleted_board["name"]}" was deleted',
+            "message": f'{ actor_name } deleted board { deleted_board["name"] }',
         },
         request.headers.get("X-Client-Id"),
     )

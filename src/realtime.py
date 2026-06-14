@@ -1,7 +1,9 @@
 # IMPORTS
 import json
 from threading import Lock
+from flask import g, has_request_context, request
 from flask_sock import Sock
+from src.services.auth_service import verify_access_token
 
 # SETUP SOCKETS AND SUBSCRIBERS
 sock = Sock()
@@ -64,14 +66,53 @@ def unregister_board_subscriber(board_id, ws):
         else:
             board_subscribers.pop(board_id, None)
 
+# FUNCTION: GET CURRENT BOARD EVENT ACTOR
+def get_board_event_actor():
+
+    # STOP, IF THERE IS NO ACTIVE REQUEST CONTEXT
+    if not has_request_context():
+        return None
+
+    # GET CURRENT USER
+    current_user = getattr(g, "current_user", None)
+
+    # STOP, IF NO USER IS AVAILABLE
+    if current_user is None:
+        return None
+
+    # RETURN ACTOR PAYLOAD
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+    }
+
+# FUNCTION: GET CURRENT BOARD EVENT ACTOR NAME
+def get_board_event_actor_name():
+
+    # GET ACTOR
+    actor = get_board_event_actor()
+
+    # RETURN USERNAME OR FALLBACK
+    return actor["username"] if actor else "Someone"
+
 # FUNCTION: BROADCAST BOARD EVENT
 def broadcast_board_event(board_id, event_type, payload=None, excluded_client_id=None):
+
+    # COPY PAYLOAD SO CALLERS KEEP OWNERSHIP
+    payload = dict(payload or {})
+
+    # INCLUDE ACTOR METADATA WHEN AVAILABLE
+    actor = get_board_event_actor()
+
+    # ADD ACTOR TO PAYLOAD IF AVAILABLE
+    if actor and "actor" not in payload:
+        payload["actor"] = actor
 
     # BUILD MESSAGE
     message = json.dumps({
         "type": event_type,
         "board_id": board_id,
-        "payload": payload or {},
+        "payload": payload,
         "source_client_id": excluded_client_id,
     })
 
@@ -91,13 +132,13 @@ def broadcast_board_event(board_id, event_type, payload=None, excluded_client_id
         if excluded_client_id and subscriber.get("client_id") == excluded_client_id:
             continue
 
-        # TRY TO SEND MESSAGE
+        # TRY-CATCH BLOCK
         try:
 
             # SEND MESSAGE
             subscriber["ws"].send(message)
 
-        # TRACK SEND FAILURES
+        # HANDLE ERRORS
         except Exception:
 
             # SAVE FAILED WEBSOCKET
@@ -107,10 +148,27 @@ def broadcast_board_event(board_id, event_type, payload=None, excluded_client_id
     for ws in stale_subscribers:
         unregister_board_subscriber(board_id, ws)
 
-
 # FUNCTION: BOARD UPDATES
 @sock.route("/ws/boards/<int:board_id>")
 def board_updates(ws, board_id):
+
+    # REQUIRE A VALID ACCESS TOKEN BEFORE SUBSCRIBING
+    if verify_access_token(request.args.get("token")) is None:
+
+        # TRY-CATCH BLOCK
+        try:
+
+            # CLOSE CONNECTION
+            ws.close()
+
+        # HANDLE ERRORS
+        except Exception:
+
+            # PASS ALL
+            pass
+
+        # BREAK
+        return
 
     # REGISTER SUBSCRIBER
     register_board_subscriber(board_id, ws)

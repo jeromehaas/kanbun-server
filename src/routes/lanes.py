@@ -1,9 +1,15 @@
 # IMPORTS
 from flask import Blueprint
 import src.controllers.lanes as lanes
+from src.services.auth_service import require_http_auth
 
 # CREATE BLUEPRINT
 lanes_bp = Blueprint("lanes", __name__)
+
+# HOOK: REQUIRE AUTHENTICATION
+@lanes_bp.before_request
+def authenticate_lane_requests():
+    return require_http_auth()
 
 # ROUTE: GET ALL
 @lanes_bp.get("/boards/<int:board_id>/lanes")

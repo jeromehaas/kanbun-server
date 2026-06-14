@@ -1,8 +1,8 @@
 # IMPORTS
-from src.models import db, Board, Task, Lane
+from src.models import db, User, Board, Task, Lane
 
 # DEFINE MODELS
-models = [Board, Lane, Task]
+models = [User, Board, Lane, Task]
 
 # FUNCTION: ENSURE TABLES
 def ensure_tables():
