@@ -16,6 +16,11 @@ def authenticate_task_requests():
 def get_tasks(board_id, lane_id):
     return tasks.get_all(board_id, lane_id)
 
+# SEARCH TASKS ACROSS ALL BOARDS
+@tasks_bp.get("/tasks/search")
+def search_tasks():
+    return tasks.search()
+
 # GET ONE TASK IN A LANE
 @tasks_bp.get("/boards/<int:board_id>/lanes/<int:lane_id>/tasks/<int:task_id>")
 def get_task_by_id(board_id, lane_id, task_id):
