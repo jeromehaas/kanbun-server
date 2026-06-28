@@ -2,6 +2,7 @@
 from flask import jsonify, request
 from src.models import Board, Task, Lane
 from src.realtime import broadcast_board_event, get_board_event_actor_name
+from src.services.search_service import search_task_documents
 
 # FUNCTION: NORMALIZE TASK POSITIONS
 def normalize_task_positions(lane):
@@ -111,6 +112,23 @@ def get_by_id(board_id, lane_id, task_id):
         "board_id": task.lane.board.id,
     }), 200
 
+# FUNCTION: SEARCH
+def search():
+
+    # GET SEARCH QUERY
+    query = (request.args.get("q") or "").strip()
+    limit = request.args.get("limit", default=20, type=int) or 20
+    limit = max(1, min(limit, 50))
+
+    # RETURN EMPTY RESULTS FOR EMPTY QUERIES
+    if not query:
+        return jsonify([]), 200
+
+    # SEARCH TASKS
+    results = search_task_documents(query, limit)
+
+    # SEND RESPONSE
+    return jsonify(results), 200
 
 # FUNCTION: CREATE
 def create(board_id, lane_id):
@@ -345,7 +363,7 @@ def update(board_id, lane_id, task_id):
 
             # UPDATE TAK POSITION
             task.position = new_position
-
+    
     # SAVE CHANGES
     task.save()
 
